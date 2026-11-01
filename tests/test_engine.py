@@ -8,7 +8,7 @@ S = [3, 7, 7, 12, 3, 7, 19, 3, 7, 7, 12, 3]
 
 
 def test_models_are_distributions():
-    for p in (models.cold_numbers(S), models.markov(S, 2), models.markov(S, 3), models.recency_frequency(S), models.mlp(S)):
+    for p in (models.cold_numbers(S), models.markov(S, 2), models.markov(S, 3), models.recency_frequency(S), models.mlp(S), models.cyclic_pattern(S)):
         assert p.shape == (20,) and abs(p.sum() - 1) < 1e-9 and (p >= 0).all()
 
 
@@ -22,6 +22,14 @@ def test_cold_numbers():
 
 def test_markov_learns_pattern():
     assert models.markov([5, 9, 5, 9, 5, 9, 5, 9, 5, 9], 2).argmax() == 4
+
+
+def test_cyclic_pattern_predicts_only_repeated_cycle():
+    cycle = [2, 8, 15] * 4
+    assert models.cyclic_pattern(cycle).argmax() == 1
+
+    noisy = [1, 2, 3, 1, 2, 4]
+    assert models.cyclic_pattern(noisy).max() == pytest.approx(1 / 20)
 
 
 def test_predict_output():

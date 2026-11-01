@@ -75,6 +75,70 @@ def _features(window) -> np.ndarray:
     return x
 
 
+def cyclic_pattern(seq, min_cycle_len: int = 3, min_repetitions: int = 2) -> np.ndarray:
+    """Detecta patrones cíclicos en la secuencia y predice el siguiente número.
+    
+    Busca un subsecuencia que se repita múltiples veces. El ciclo detectado
+    se usa para predecir el siguiente elemento. Si no hay ciclo claro, devuelve
+    distribución uniforme.
+    
+    La heurística es: si encontramos un ciclo que se repite, el próximo número
+    esperado es el que sigue al final del ciclo actual.
+    """
+    seq = list(seq)
+    n = len(seq)
+    
+    if n < min_cycle_len * min_repetitions:
+        return np.full(N, 1.0 / N)
+    
+    def find_cycle():
+        for cycle_len in range(min_cycle_len, min(n // 2 + 1, n - 1)):
+            if n < cycle_len * min_repetitions:
+                continue
+            
+            cycle = tuple(seq[-cycle_len:])
+            
+            match_count = 0
+            for rep in range(min_repetitions):
+                start = n - (rep + 1) * cycle_len
+                if start < 0:
+                    break
+                segment = tuple(seq[start:start + cycle_len])
+                if segment == cycle:
+                    match_count += 1
+                else:
+                    break
+            
+            if match_count >= min_repetitions:
+                return cycle
+        return None
+    
+    cycle = find_cycle()
+    
+    if cycle is None:
+        return np.full(N, 1.0 / N)
+    
+    last_num = seq[-1]
+    cycle_idx = None
+    for i, num in enumerate(cycle):
+        if num == last_num:
+            cycle_idx = i
+            break
+    
+    if cycle_idx is None:
+        return np.full(N, 1.0 / N)
+    
+    next_idx = (cycle_idx + 1) % len(cycle)
+    next_in_cycle = cycle[next_idx]
+    
+    probs = np.zeros(N)
+    probs[next_in_cycle - 1] = 0.85
+    for i in range(N):
+        if i + 1 != next_in_cycle:
+            probs[i] = 0.15 / (N - 1)
+    return probs
+
+
 def mlp(seq, window: int = 3, hidden: int = 16, epochs: int = 150,
         lr: float = 0.1, l2: float = 1e-3, seed: int = 0) -> np.ndarray:
     """MLP (1 capa oculta tanh + softmax) entrenado on-the-fly con descenso de
@@ -102,3 +166,4 @@ def mlp(seq, window: int = 3, hidden: int = 16, epochs: int = 150,
     z = np.tanh(x @ W1 + b1) @ W2 + b2
     p = np.exp(z - z.max())
     return _norm(p)
+
