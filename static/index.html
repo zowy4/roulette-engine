@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Motor predictivo de Ruleta (1-20)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 1.5em auto; padding: 0 1em; background: #f8f9fa; color: #333; }
+  h1 { font-size: 1.8em; color: #1a73e8; margin-bottom: 0.2em; }
+  .card { background: #fff; padding: 1.2em; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 1.2em; }
+  input, button { font-size: 1em; }
+  input[type="text"], input[type="number"] { width: 100%; padding: .7em; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; margin-top: .4em; }
+  button { padding: .7em 1.2em; margin: .5em .5em .5em 0; background: #1a73e8; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  button:hover { background: #1557b0; }
+  button.secondary { background: #5f6368; }
+  button.secondary:hover { background: #484c50; }
+  .pill { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: .4em .8em; margin: .2em; border-radius: 20px; font-weight: bold; font-size: 1.1em; }
+  .pill.new { background: #ceead6; color: #137333; }
+  .c { display: inline-block; margin: .4em; padding: 1em; background: #fff; border: 1px solid #dadce0; border-radius: 8px; text-align: center; min-width: 70px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  .c b { font-size: 1.8em; display: block; color: #1a73e8; }
+  .grid-20 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 0.5em; }
+  .grid-20 button { padding: 0.6em; margin: 0; background: #f1f3f4; color: #202124; border: 1px solid #dadce0; font-weight: bold; }
+  .grid-20 button:hover { background: #1a73e8; color: white; border-color: #1a73e8; }
+  #err { color: #d93025; font-weight: bold; margin-top: 0.5em; }
+  .stats { margin-top: 1em; line-height: 1.6; font-size: 1.05em; background: #f1f3f4; padding: 1em; border-radius: 6px; }
+  .notice { font-size: 0.9em; color: #5f6368; margin-top: 0.8em; font-style: italic; }
+</style>
+</head>
+<body>
+  <h1>Motor predictivo de Ruleta (1-20)</h1>
+  <p>Sistema interactivo: prioriza números menos frecuentes o no salidos en la secuencia ingresada (evitando repetir exceso de números frecuentes).</p>
+
+  <div class="card" id="setup-card">
+    <h3>1. Configuración inicial (10 a 15 números entre 1 y 20)</h3>
+    <p>Ingresa la serie inicial de números separados por espacios o comas (ej: 4 10 11 12 17 20 15 3 8 9 12):</p>
+    <input id="initial-input" type="text" value="4 10 11 12 17 20 15 3 8 9 12">
+    <div style="margin-top: 0.8em;">
+      <button onclick="initSequence()">Comenzar con esta serie</button>
+      <button class="secondary" onclick="rnd()">Muestra aleatoria</button>
+    </div>
+    <p id="setup-err"></p>
+  </div>
+
+  <div class="card" id="play-card" style="display:none;">
+    <h3>2. Historial actual en juego</h3>
+    <div id="sequence-pills" style="margin-bottom: 1em;"></div>
+    
+    <h3>3. Salió en la ruleta (Registrar siguiente número):</h3>
+    <p>Selecciona o ingresa el número que acaba de salir en la ruleta para agregarlo y actualizar la predicción:</p>
+    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 0.8em;">
+      <input id="next-num" type="number" min="1" max="20" placeholder="Ej. 2" style="max-width: 120px; margin-top:0;" onkeydown="if(event.key==='Enter')addNextNumber()">
+      <button onclick="addNextNumber()" style="margin:0;">Agregar número</button>
+      <button class="secondary" onclick="resetApp()" style="margin:0;">Reiniciar serie</button>
+    </div>
+
+    <p>O haz clic directamente en el número que salió:</p>
+    <div class="grid-20" id="keypad"></div>
+
+    <p id="err"></p>
+
+    <div id="out" style="margin-top: 1.2em;"></div>
+  </div>
+
+<script>
+const $=id=>document.getElementById(id);
+let currentSeq = [];
+
+function rnd(){
+  const len = 12;
+  $('initial-input').value = Array.from({length: len}, () => 1 + Math.floor(Math.random()*20)).join(' ');
+}
+
+// Build 1-20 keypad buttons
+const keypad = $('keypad');
+for(let i=1; i<=20; i++){
+  const btn = document.createElement('button');
+  btn.textContent = i;
+  btn.type = 'button';
+  btn.onclick = () => {
+    $('next-num').value = i;
+    addNextNumber();
+  };
+  keypad.appendChild(btn);
+}
+
+function initSequence(){
+  $('setup-err').textContent = '';
+  const text = $('initial-input').value;
+  const nums = text.split(/[\s,;]+/).filter(Boolean).map(Number);
+  if(nums.length < 10 || nums.length > 15 || nums.some(n => isNaN(n) || n < 1 || n > 20)){
+    $('setup-err').textContent = 'Error: Debes ingresar entre 10 y 15 números enteros válidos entre 1 y 20.';
+    return;
+  }
+  currentSeq = nums;
+  $('setup-card').style.display = 'none';
+  $('play-card').style.display = 'block';
+  predictAndUpdate();
+}
+
+function addNextNumber(){
+  $('err').textContent = '';
+  const val = parseInt($('next-num').value, 10);
+  if(isNaN(val) || val < 1 || val > 20){
+    $('err').textContent = 'Por favor ingresa un número válido entre 1 y 20.';
+    return;
+  }
+  
+  // Append new number
+  currentSeq.push(val);
+  // Keep window between 10 and 15 numbers (e.g. max 15)
+  if(currentSeq.length > 15){
+    currentSeq.shift();
+  }
+  $('next-num').value = '';
+  predictAndUpdate();
+}
+
+async function predictAndUpdate(){
+  $('err').textContent = '';
+  // Render pills
+  const pillsHtml = currentSeq.map((n, idx) => {
+    const isLast = idx === currentSeq.length - 1;
+    return `<span class="pill ${isLast ? 'new' : ''}">${n}</span>`;
+  }).join(' ');
+  $('sequence-pills').innerHTML = '<b>Secuencia activa (' + currentSeq.length + ' núms):</b><br>' + pillsHtml;
+
+  try {
+    const r = await fetch('/predict', {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({numeros: currentSeq})
+    });
+    const d = await r.json();
+    if(!r.ok){
+      $('err').textContent = typeof d.detail === 'string' ? d.detail : 'Error en la predicción';
+      return;
+    }
+
+    $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
+      d.predicciones.map(p => `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%</div>`).join('') +
+      `<div class="stats">
+        <b>Estadísticas de la ronda:</b><br>
+        Par: ${d.par_impar.par_pct}% / Impar: ${d.par_impar.impar_pct}%<br>
+        Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
+        Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
+      </div>
+      <div class="notice">${d.aviso}</div>`;
+  } catch(e) {
+    $('err').textContent = 'Error de conexión con el servidor.';
+  }
+}
+
+function resetApp(){
+  currentSeq = [];
+  $('setup-card').style.display = 'block';
+  $('play-card').style.display = 'none';
+  $('out').innerHTML = '';
+  $('err').textContent = '';
+}
+</script>
+</body>
+</html>
