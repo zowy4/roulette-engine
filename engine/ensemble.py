@@ -3,7 +3,7 @@ import math
 import numpy as np
 from . import models
 
-DEFAULT_WEIGHTS = {"cold": 0.6, "markov2": 0.1, "markov3": 0.1, "recency": 0.1, "mlp": 0.1}
+DEFAULT_WEIGHTS = {"cold": 0.5, "recent_avoid": 0.25, "markov2": 0.05, "markov3": 0.05, "recency": 0.05, "mlp": 0.1}
 
 
 def validate(seq):
@@ -26,6 +26,7 @@ def shannon_entropy(seq) -> dict:
 def component_probs(seq, weights=None) -> dict:
     return {
         "cold": models.cold_numbers(seq),
+        "recent_avoid": models.recent_avoid(seq, window=5),
         "markov2": models.markov(seq, 2),
         "markov3": models.markov(seq, 3),
         "recency": models.recency_frequency(seq),

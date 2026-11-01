@@ -39,8 +39,19 @@ def recency_frequency(seq, half_life: float = 5.0) -> np.ndarray:
     return _norm(out)
 
 
+def recent_avoid(seq, window: int = 5) -> np.ndarray:
+    """Evita números que han aparecido en las últimas 'window' posiciones."""
+    seq = np.asarray(seq)
+    weights = np.ones(N)
+    start = max(0, len(seq) - window)
+    for n in seq[start:]:
+        weights[n - 1] = 0.1
+    return _norm(weights)
+
+
 def cold_numbers(seq) -> np.ndarray:
-    """Prioriza números que menos han salido o no han salido en la secuencia ingresada."""
+    """Prioriza números que menos han salido o no han salido en la secuencia ingresada.
+    También penaliza números que han salido recientemente (ventana 3)."""
     seq = np.asarray(seq)
     counts = np.zeros(N)
     for n in seq:
@@ -48,6 +59,12 @@ def cold_numbers(seq) -> np.ndarray:
             counts[n - 1] += 1
     max_c = counts.max() if counts.size > 0 else 0
     weights = (max_c - counts) + 1.0
+    # penalización por recencia fuerte (evita repetir de los últimos 3)
+    if len(seq) >= 3:
+        recent = np.zeros(N)
+        for n in seq[-3:]:
+            recent[n - 1] += 1
+        weights = weights * (1.0 / (recent + 1.0))
     return _norm(weights)
 
 
