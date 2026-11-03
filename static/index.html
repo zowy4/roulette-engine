@@ -144,28 +144,49 @@ async function predictAndUpdate(){
     }
     coldNumbers.sort((a, b) => a.count - b.count);
 
-    $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
-      d.predicciones.map(p => `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%</div>`).join('') +
-      `<div class="stats">
-        <b>Estadísticas de la ronda:</b><br>
-        Par: ${d.par_impar.par_pct}% / Impar: ${d.par_impar.impar_pct}%<br>
-        Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
-        Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
-      </div>
-      <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
-        <b>🔥 Números menos frecuentes (Cold Numbers):</b><br>
-        <div style="margin-top: 0.6em;">
-        ${coldNumbers.slice(0, 5).map(item => 
-          `<div style="display:inline-block; margin:3px 5px 3px 0;">
-            <span class="pill" style="background:#fff8e1; color:#1a73e8;">${item.num}</span>
-            <span style="color:#5f6368; font-size:0.8em; margin-left:4px;">
-              ${item.count === 0 ? '(sin salir)' : '×' + item.count}
-            </span>
-          </div>`
-        ).join('')}
+    // Get numbers that haven't appeared yet
+        const neverHit = coldNumbers.filter(item => item.count === 0).map(item => item.num);
+        const neverHitSet = new Set(neverHit);
+
+        // Render predictions with indicators for numbers that haven't appeared
+        const predictionsHtml = d.predicciones.map(p => {
+          const neverHitIndicator = neverHitSet.has(p.numero) ? ' 🔥' : '';
+          return `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%${neverHitIndicator}</div>`;
+        }).join('');
+
+        $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
+          predictionsHtml +
+          `<div class="stats">
+            <b>Estadísticas de la ronda:</b><br>
+            Par: ${d.par_impar.par_pct}% / Impar: ${d.par_impar.impar_pct}%<br>
+            Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
+            Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
+          </div>
+          <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
+            <b>🔥 Números menos frecuentes (Cold Numbers):</b><br>
+            <div style="margin-top: 0.6em;">
+            ${coldNumbers.slice(0, 5).map(item => 
+              `<div style="display:inline-block; margin:3px 5px 3px 0;">
+                <span class="pill" style="background:#fff8e1; color:#1a73e8;">${item.num}</span>
+                <span style="color:#5f6368; font-size:0.8em; margin-left:4px;">
+                  ${item.count === 0 ? '(sin salir)' : '×' + item.count}
+                </span>
+              </div>`
+            ).join('')}
+            </div>
+            <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
+              <b>Puntuación de frecuencia:</b> Números sin salir tienen mayor peso en las predicciones
+            </div>
+          </div>
+          <div class="stats" style="background: #e3f2fd; border-left: 4px solid #1976d2; margin-top: 1em;">
+        <b>📋 Números que faltan (no han salido):</b>
+        <div style="margin-top: 0.6em; display: flex; flex-wrap: wrap; gap: 8px;">
+        ${neverHit.length > 0 ? neverHit.map(n => 
+          `<span class="pill" style="background:#e3f2fd; color:#1976d2;">${n}</span>`
+        ).join('') : '<span style="color:#5f6368;">Todos los números han salido al menos una vez</span>'}
         </div>
-        <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
-          <b>Puntuación de frecuencia:</b> Números sin salir tienen mayor peso en las predicciones
+        <div style="font-size:0.85em; color:#5f6368; margin-top:0.4em;">
+          ${neverHit.length} números han salido 0 veces en la secuencia actual
         </div>
       </div>
       <div class="notice">${d.aviso}</div>`;
