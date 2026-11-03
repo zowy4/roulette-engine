@@ -1,0 +1,26 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Uvicorn Server",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe -m uvicorn engine.api:app --port 8000",
+			"isBackground": true
+		},
+		{
+			"label": "start-server",
+			"type": "shell",
+			"command": ".venv\\Scripts\\uvicorn.exe engine.api:app --port 8000 --reload",
+			"isBackground": true
+		},
+		{
+			"label": "Run tests",
+			"type": "shell",
+			"command": ".venv\\Scripts\\python.exe -m pytest",
+			"args": [
+				"tests/test_engine.py",
+				"-v"
+			]
+		}
+	]
+}

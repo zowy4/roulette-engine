@@ -137,28 +137,38 @@ async function predictAndUpdate(){
     }
 
     // Calculate cold numbers (least frequent, not appeared)
-        const coldNumbers = [];
-        for(let i = 1; i <= 20; i++){
-          const count = currentSeq.filter(n => n === i).length;
-          coldNumbers.push({num: i, count: count});
-        }
-        coldNumbers.sort((a, b) => a.count - b.count);
+    const coldNumbers = [];
+    for(let i = 1; i <= 20; i++){
+      const count = currentSeq.filter(n => n === i).length;
+      coldNumbers.push({num: i, count: count});
+    }
+    coldNumbers.sort((a, b) => a.count - b.count);
 
-        $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
-          d.predicciones.map(p => `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%</div>`).join('') +
-          `<div class="stats">
-            <b>Estadísticas de la ronda:</b><br>
-            Par: ${d.par_impar.par_pct}% / Impar: ${d.par_impar.impar_pct}%<br>
-            Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
-            Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
-          </div>
-          <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
-            <b>🔥 Números menos frecuentes (Cold Numbers):</b><br>
-            ${coldNumbers.slice(0, 5).map(item => 
-              `<span class="pill" style="background:#fff8e1; color:#1a73e8; margin:2px;">${item.num}</span> ${item.count === 0 ? '<span style="color:#5f6368;font-size:0.85em;">(no salió)</span>' : '<span style="color:#5f6368;font-size:0.85em;">' + item.count + ' veces</span>'}`
-            ).join(' &nbsp; ')}
-          </div>
-          <div class="notice">${d.aviso}</div>`;
+    $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
+      d.predicciones.map(p => `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%</div>`).join('') +
+      `<div class="stats">
+        <b>Estadísticas de la ronda:</b><br>
+        Par: ${d.par_impar.par_pct}% / Impar: ${d.par_impar.impar_pct}%<br>
+        Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
+        Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
+      </div>
+      <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
+        <b>🔥 Números menos frecuentes (Cold Numbers):</b><br>
+        <div style="margin-top: 0.6em;">
+        ${coldNumbers.slice(0, 5).map(item => 
+          `<div style="display:inline-block; margin:3px 5px 3px 0;">
+            <span class="pill" style="background:#fff8e1; color:#1a73e8;">${item.num}</span>
+            <span style="color:#5f6368; font-size:0.8em; margin-left:4px;">
+              ${item.count === 0 ? '(sin salir)' : '×' + item.count}
+            </span>
+          </div>`
+        ).join('')}
+        </div>
+        <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
+          <b>Puntuación de frecuencia:</b> Números sin salir tienen mayor peso en las predicciones
+        </div>
+      </div>
+      <div class="notice">${d.aviso}</div>`;
   } catch(e) {
     $('err').textContent = 'Error de conexión con el servidor.';
   }
