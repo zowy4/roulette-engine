@@ -39,6 +39,20 @@ def recency_frequency(seq, half_life: float = 5.0) -> np.ndarray:
     return _norm(out)
 
 
+def relative_frequency(seq, alpha: float = 1.0) -> np.ndarray:
+    """Frecuencia relativa con Laplace smoothing, priorizando números menos frecuentes."""
+    seq = np.asarray(seq)
+    if len(seq) == 0:
+        return np.full(N, 1.0 / N)
+    counts = np.bincount(seq - 1, minlength=N).astype(float)
+    total_count = counts.sum()
+    # Probabilidad proporcional a frecuencia con suavizado de Laplace
+    probs = (counts + alpha) / (total_count + alpha * N)
+    # Invertir para priorizar números raros, con límite mínimo
+    weights = np.clip(1.0 / (probs + 0.1), 0.2, 5.0)
+    return _norm(weights)
+
+
 def recent_avoid(seq, window: int = 5) -> np.ndarray:
     """Evita números que han aparecido en las últimas 'window' posiciones."""
     seq = np.asarray(seq)
@@ -139,10 +153,12 @@ def cyclic_pattern(seq, min_cycle_len: int = 3, min_repetitions: int = 2) -> np.
     return probs
 
 
-def mlp(seq, window: int = 3, hidden: int = 16, epochs: int = 150,
-        lr: float = 0.1, l2: float = 1e-3, seed: int = 0) -> np.ndarray:
+def mlp(seq, window: int = 3, hidden: int = 32, epochs: int = 500,
+        lr: float = 0.05, l2: float = 1e-4, seed: int = 42) -> np.ndarray:
     """MLP (1 capa oculta tanh + softmax) entrenado on-the-fly con descenso de
-    gradiente sobre la muestra actual, en NumPy puro. Semilla fija => determinista."""
+    gradiente sobre la muestra actual, en NumPy puro. Semilla fija => determinista.
+    
+    Mejorado: más épocas, early stopping y tasas de aprendizaje más bajas."""
     seq = list(seq)
     w = min(window, len(seq) - 1)
     if w < 1:
@@ -154,10 +170,24 @@ def mlp(seq, window: int = 3, hidden: int = 16, epochs: int = 150,
     rng = np.random.default_rng(seed)
     W1 = rng.normal(0, 0.1, (X.shape[1], hidden)); b1 = np.zeros(hidden)
     W2 = rng.normal(0, 0.1, (hidden, N)); b2 = np.zeros(N)
-    for _ in range(epochs):
+    
+    best_loss = float('inf')
+    patience = 0
+    for epoch in range(epochs):
         H = np.tanh(X @ W1 + b1)
         Z = H @ W2 + b2
         P = np.exp(Z - Z.max(1, keepdims=True)); P /= P.sum(1, keepdims=True)
+        loss = -np.mean(np.log(P[np.arange(len(X)), Y.argmax(1)] + 1e-12))
+        
+        if loss < best_loss:
+            best_loss = loss
+            patience = 0
+            best_W1, best_b1, best_W2, best_b2 = W1.copy(), b1.copy(), W2.copy(), b2.copy()
+        else:
+            patience += 1
+            if patience >= 15:
+                W1, b1, W2, b2 = best_W1, best_b1, best_W2, best_b2
+                break
         dZ = (P - Y) / len(X)
         dH = (dZ @ W2.T) * (1 - H ** 2)
         W2 -= lr * (H.T @ dZ + l2 * W2); b2 -= lr * dZ.sum(0)

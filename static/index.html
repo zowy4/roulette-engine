@@ -147,11 +147,16 @@ async function predictAndUpdate(){
     // Get numbers that haven't appeared yet
         const neverHit = coldNumbers.filter(item => item.count === 0).map(item => item.num);
         const neverHitSet = new Set(neverHit);
+    
+        // Get numbers that are in predictions but not in neverHit (they appeared at least once)
+        const predictionNums = d.predicciones.map(p => p.numero);
+        const predictedButHit = predictionNums.filter(n => !neverHitSet.has(n));
 
         // Render predictions with indicators for numbers that haven't appeared
         const predictionsHtml = d.predicciones.map(p => {
           const neverHitIndicator = neverHitSet.has(p.numero) ? ' 🔥' : '';
-          return `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%${neverHitIndicator}</div>`;
+          const missingIndicator = neverHitSet.has(p.numero) ? ' (faltante)' : '';
+          return `<div class="c"><b>${p.numero}</b>${p.confianza_pct}%${neverHitIndicator}${missingIndicator}</div>`;
         }).join('');
 
         $('out').innerHTML = '<h2>Próximos números más probables (Top 5)</h2>' +
@@ -162,33 +167,33 @@ async function predictAndUpdate(){
             Rango 1-10: ${d['rangos']['1-10_pct']}% / Rango 11-20: ${d['rangos']['11-20_pct']}%<br>
             Entropía: ${d.entropia.bits} bits (${(d.entropia.normalizada*100).toFixed(1)}% de aleatoriedad)
           </div>
-          <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
-            <b>🔥 Números menos frecuentes (Cold Numbers):</b><br>
+                  <div class="stats" style="background: #f1f8ff; border-left: 4px solid #4285f4; margin-top: 1em;">
+                    <b>📊 Números que faltan en predicciones (no han salido nunca):</b>
             <div style="margin-top: 0.6em;">
-            ${coldNumbers.slice(0, 5).map(item => 
-              `<div style="display:inline-block; margin:3px 5px 3px 0;">
-                <span class="pill" style="background:#fff8e1; color:#1a73e8;">${item.num}</span>
-                <span style="color:#5f6368; font-size:0.8em; margin-left:4px;">
-                  ${item.count === 0 ? '(sin salir)' : '×' + item.count}
-                </span>
-              </div>`
-            ).join('')}
-            </div>
-            <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
-              <b>Puntuación de frecuencia:</b> Números sin salir tienen mayor peso en las predicciones
-            </div>
-          </div>
-          <div class="stats" style="background: #e3f2fd; border-left: 4px solid #1976d2; margin-top: 1em;">
-        <b>📋 Números que faltan (no han salido):</b>
-        <div style="margin-top: 0.6em; display: flex; flex-wrap: wrap; gap: 8px;">
-        ${neverHit.length > 0 ? neverHit.map(n => 
-          `<span class="pill" style="background:#e3f2fd; color:#1976d2;">${n}</span>`
-        ).join('') : '<span style="color:#5f6368;">Todos los números han salido al menos una vez</span>'}
-        </div>
-        <div style="font-size:0.85em; color:#5f6368; margin-top:0.4em;">
-          ${neverHit.length} números han salido 0 veces en la secuencia actual
-        </div>
-      </div>
+                      ${neverHit.length > 0 ? neverHit.map(n => 
+                        `<span class="pill" style="background:#f1f8ff; color:#1a73e8; border: 2px solid #4285f4;">${n}</span>`
+                      ).join('') : '<span style="color:#5f6368;">Todos los números han salido al menos una vez</span>'}
+                    </div>
+                    <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
+                      ${neverHit.length} números sin salir: ${neverHit.join(', ')}
+                    </div>
+                  </div>
+                  <div class="stats" style="background: #fff8e1; border-left: 4px solid #f9a825;">
+                    <b>🔥 Números menos frecuentes (Cold Numbers):</b>
+                    <div style="margin-top: 0.6em;">
+                    ${coldNumbers.slice(0, 5).map(item => 
+                      `<div style="display:inline-block; margin:3px 5px 3px 0;">
+                        <span class="pill" style="background:#fff8e1; color:#1a73e8;">${item.num}</span>
+                        <span style="color:#5f6368; font-size:0.8em; margin-left:4px;">
+                          ${item.count === 0 ? '(faltante) 🔥' : '×' + item.count}
+                        </span>
+                      </div>`
+                    ).join('')}
+                    </div>
+                    <div style="font-size:0.9em; color:#5f6368; margin-top:0.4em;">
+                      <b>🔥 Faltantes: </b>${neverHit.slice(0, 5).map(n => `<span style="color:#f9a825; font-weight:bold;">${n}</span>`).join(', ')}
+                    </div>
+                  </div>
       <div class="notice">${d.aviso}</div>`;
   } catch(e) {
     $('err').textContent = 'Error de conexión con el servidor.';

@@ -3,7 +3,7 @@ import math
 import numpy as np
 from . import models
 
-DEFAULT_WEIGHTS = {"cold": 0.2, "recent_avoid": 0.12, "markov2": 0.12, "markov3": 0.12, "recency": 0.1, "cyclic": 0.12, "frecuencia": 0.12, "mlp": 0.1}
+DEFAULT_WEIGHTS = {"cold": 0.18, "recent_avoid": 0.10, "markov2": 0.15, "markov3": 0.15, "recency": 0.08, "cyclic": 0.12, "frecuencia": 0.08, "mlp": 0.14, "relative_freq": 0.10}
 
 
 def validate(seq):
@@ -34,6 +34,7 @@ def _adaptive_weights(seq, entropy_normalized: float) -> dict:
         "cyclic": 0.12,
         "frecuencia": 0.12,
         "mlp": 0.10,
+        "relative_freq": 0.10,
     }
     if entropy_normalized < 0.4:
         base["cyclic"] = 0.20
@@ -43,6 +44,11 @@ def _adaptive_weights(seq, entropy_normalized: float) -> dict:
         base["markov2"] = 0.18
         base["markov3"] = 0.15
         base["mlp"] = 0.14
+    # Ajustar peso de relative_freq según la entropía
+    if entropy_normalized < 0.3:
+        base["relative_freq"] = 0.15
+    elif entropy_normalized > 0.7:
+        base["relative_freq"] = 0.08
     total = sum(base.values())
     return {k: v / total for k, v in base.items()}
 
@@ -67,6 +73,7 @@ def component_probs(seq, weights=None) -> dict:
         "cyclic": models.cyclic_pattern(seq),
         "frecuencia": _frequency_model(seq),
         "mlp": models.mlp(seq),
+        "relative_freq": models.relative_frequency(seq),
     }
 
 
